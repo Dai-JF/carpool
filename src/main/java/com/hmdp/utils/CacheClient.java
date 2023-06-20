@@ -29,10 +29,16 @@ public class CacheClient {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 
+    /**
+     * 写入redis
+     */
     public void set(String key, Object value, Long time, TimeUnit unit) {
         stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(value), time, unit);
     }
 
+    /**
+     * 逻辑过期时间写入redis
+     */
     public void setWithLogicalExpire(String key, Object value, Long time, TimeUnit unit) {
         // 设置逻辑过期
         RedisData redisData = new RedisData();
@@ -42,8 +48,12 @@ public class CacheClient {
         stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(redisData));
     }
 
-    public <R,ID> R queryWithPassThrough(
-            String keyPrefix, ID id, Class<R> type, Function<ID, R> dbFallback, Long time, TimeUnit unit){
+    /**
+     * 解决缓存穿透
+     * R： 任意类型的自定义泛型
+     * ID：自定义id的类型
+     */
+    public <R, ID> R queryWithPassThrough(String keyPrefix, ID id, Class<R> type, Function<ID, R> dbFallback, Long time, TimeUnit unit) {
         String key = keyPrefix + id;
         // 1.从redis查询商铺缓存
         String json = stringRedisTemplate.opsForValue().get(key);
@@ -54,7 +64,7 @@ public class CacheClient {
         }
         // 判断命中的是否是空值
         if (json != null) {
-            // 返回一个错误信息
+            // 返回一个空对象
             return null;
         }
 
@@ -72,6 +82,9 @@ public class CacheClient {
         return r;
     }
 
+    /**
+     * 逻辑过期解决缓存击穿
+     */
     public <R, ID> R queryWithLogicalExpire(
             String keyPrefix, ID id, Class<R> type, Function<ID, R> dbFallback, Long time, TimeUnit unit) {
         String key = keyPrefix + id;
@@ -87,7 +100,7 @@ public class CacheClient {
         R r = JSONUtil.toBean((JSONObject) redisData.getData(), type);
         LocalDateTime expireTime = redisData.getExpireTime();
         // 5.判断是否过期
-        if(expireTime.isAfter(LocalDateTime.now())) {
+        if (expireTime.isAfter(LocalDateTime.now())) {
             // 5.1.未过期，直接返回店铺信息
             return r;
         }
@@ -97,7 +110,7 @@ public class CacheClient {
         String lockKey = LOCK_SHOP_KEY + id;
         boolean isLock = tryLock(lockKey);
         // 6.2.判断是否获取锁成功
-        if (isLock){
+        if (isLock) {
             // 6.3.成功，开启独立线程，实现缓存重建
             CACHE_REBUILD_EXECUTOR.submit(() -> {
                 try {
@@ -107,7 +120,7 @@ public class CacheClient {
                     this.setWithLogicalExpire(key, newR, time, unit);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
-                }finally {
+                } finally {
                     // 释放锁
                     unlock(lockKey);
                 }
@@ -117,6 +130,9 @@ public class CacheClient {
         return r;
     }
 
+    /**
+     * 互斥锁解决缓存击穿
+     */
     public <R, ID> R queryWithMutex(
             String keyPrefix, ID id, Class<R> type, Function<ID, R> dbFallback, Long time, TimeUnit unit) {
         String key = keyPrefix + id;
@@ -158,7 +174,7 @@ public class CacheClient {
             this.set(key, r, time, unit);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
-        }finally {
+        } finally {
             // 7.释放锁
             unlock(lockKey);
         }
@@ -166,11 +182,17 @@ public class CacheClient {
         return r;
     }
 
+    /**
+     * 获取锁
+     */
     private boolean tryLock(String key) {
         Boolean flag = stringRedisTemplate.opsForValue().setIfAbsent(key, "1", 10, TimeUnit.SECONDS);
         return BooleanUtil.isTrue(flag);
     }
 
+    /**
+     * 删除锁
+     */
     private void unlock(String key) {
         stringRedisTemplate.delete(key);
     }
