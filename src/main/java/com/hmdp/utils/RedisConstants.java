@@ -29,10 +29,15 @@ public class RedisConstants {
     public static final String CACHE_SHOP_TYPE_KEY = "cache:shopType:";
     public static final Long CACHE_SHOP_TYPE_TTL = 30L;
 
-
+    /**
+     * 店铺互斥锁相关
+     */
     public static final String LOCK_SHOP_KEY = "lock:shop:";
 
     public static final Long LOCK_SHOP_TTL = 10L;
 
+    /**
+     * 优惠券库存相关
+     */
     public static final String SECKILL_STOCK_KEY = "seckill:stock:";
 }
