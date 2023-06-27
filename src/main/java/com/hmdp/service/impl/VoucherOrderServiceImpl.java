@@ -36,21 +36,22 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             // 尚未开始
             return Result.fail("秒杀尚未开始！");
         }
-
         // 3.判断秒杀是否结束
         if (voucher.getEndTime().isBefore(LocalDateTime.now())) {
             // 已经结束
             return Result.fail("秒杀已经结束！");
         }
-
         // 4.判断库存是否充足
         if (voucher.getStock() < 1) {
             return Result.fail("库存不足！");
         }
-
-        // 5.扣减库存
-        boolean isSuccess = seckillVoucherService.update().setSql("stock = stock -1").eq("voucher_id", voucherId).update();
-
+        // 5.扣减库存 乐观锁CAS解决超卖问题【判断库存前后是否一致】
+        boolean isSuccess = seckillVoucherService
+                // set stock = stock - 1
+                .update().setSql("stock = stock -1")
+                // where id = ? and stock > 0
+                .eq("voucher_id", voucherId).gt("stock", 0)
+                .update();
         if (!isSuccess) {
             return Result.fail("库存不足！");
         }
