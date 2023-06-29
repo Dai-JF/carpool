@@ -40,4 +40,8 @@ public class RedisConstants {
      * 优惠券库存相关
      */
     public static final String SECKILL_STOCK_KEY = "seckill:stock:";
+    /**
+     * 点赞相关
+     */
+    public static final String BOLG_LIKED_KEY = "blog:liked:";
 }
