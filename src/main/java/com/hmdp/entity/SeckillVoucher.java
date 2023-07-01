@@ -10,9 +10,6 @@ import lombok.experimental.Accessors;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-/**
- * 秒杀优惠券表，与优惠券是一对一关系
- */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
